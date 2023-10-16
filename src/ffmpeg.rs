@@ -1,7 +1,10 @@
 use crate::util::{ensure_command, print_flush};
 use eyre::{bail, Result};
 use serde::Deserialize;
-use std::process::{Child, Command, Stdio};
+use std::{
+    ffi::OsStr,
+    process::{Child, Command, Stdio},
+};
 
 const BASIC_ARGS: &[&str] = &["-loglevel", "error"];
 
@@ -34,11 +37,19 @@ pub fn launch_encoder(framerate: &str, original_src: &str, output_path: &str) ->
         "log-level=none",
         output_path,
     ]);
-
     cmd.stdin(Stdio::piped());
-    cmd.stdout(Stdio::piped());
+    // cmd.stdout(Stdio::piped());
     // cmd.stderr(Stdio::piped());
+    Ok(cmd.spawn()?)
+}
 
+pub fn launch_decoder<S: AsRef<OsStr>>(source_video: S) -> Result<Child> {
+    let mut cmd = Command::new("ffmpeg");
+    cmd.args(BASIC_ARGS);
+    cmd.args(["-i".as_ref(), source_video.as_ref()]);
+    cmd.args(["-c:v", "png", "-f", "image2pipe", "-"]);
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::piped());
     Ok(cmd.spawn()?)
 }
 
@@ -97,28 +108,4 @@ pub struct StreamData {
     // ffmpeg/ffprobe use strings of fractions for precise framerate, eg "30/1" for 30fps
     pub framerate: String,
     pub frames: u64,
-}
-
-// start_frame + count going past the final frame is fine.
-pub fn extract_frames(video: &str, output_dir: &str, start_frame: u64, count: u64) -> Result<()> {
-    let output_pattern = format!("{output_dir}/frame%08d.png");
-    let frame_filter = format!(
-        "select='between(n\\,{}\\,{})'",
-        start_frame,
-        start_frame + count - 1
-    );
-
-    let mut cmd = Command::new("ffmpeg");
-    cmd.args(BASIC_ARGS);
-    cmd.args([
-        "-i",
-        video,
-        "-vf",
-        &frame_filter,
-        "-fps_mode",
-        "passthrough",
-        &output_pattern,
-    ]);
-    ensure_command(&mut cmd)?;
-    Ok(())
 }

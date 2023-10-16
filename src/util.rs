@@ -1,6 +1,6 @@
 use eyre::{bail, Context, Result};
 use std::{
-    fs,
+    fs, io,
     path::{Path, PathBuf},
     process::{Command, Output},
     str,
@@ -62,4 +62,8 @@ impl Drop for TempDir {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(self.path());
     }
+}
+
+pub fn file_exists<P: AsRef<Path>>(p: P) -> io::Result<bool> {
+    p.as_ref().try_exists()
 }
