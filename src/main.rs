@@ -117,7 +117,7 @@ fn ctrlc_handler() {
     let our_pid = std::process::id();
     let children_str = fs::read_to_string(&format!("/proc/self/task/{our_pid}/children"))
         .expect("getting pids of child processes");
-    for pid in children_str.trim().split_whitespace() {
+    for pid in children_str.split_whitespace() {
         _ = Command::new("kill").arg(pid).status();
     }
 }
