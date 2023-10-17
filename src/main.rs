@@ -114,7 +114,7 @@ fn ctrlc_handler() {
     println!("Interrupted");
 
     // Kill all child procs. This will allow normal error propagation to take over, and run drop code.
-    fs::read_to_string(&format!("/proc/self/task/{}/children", pid()))
+    fs::read_to_string(format!("/proc/self/task/{}/children", pid()))
         .expect("getting pids of child processes")
         .split_whitespace()
         .for_each(|pid| _ = command!("kill", pid));
