@@ -26,7 +26,14 @@ fn main() -> Result<()> {
         frame_window_size: 100,
     };
 
-    reencode_video(input, output, options)
+    // Automatically download Real-ESRGAN
+    realesrgan::check_and_download().context("downloading Real-ESRGAN")?;
+
+    // Check input and output files
+    ensure!(file_exists(input)?, "{input} doesn't exist");
+    ensure!(!file_exists(output)?, "{output} already exists");
+
+    upscale_video(input.trim(), output.trim(), options)
         .context("Reencoding failed!")
         .map_err(|e| {
             _ = fs::remove_file(output);
@@ -39,14 +46,7 @@ struct Options {
     frame_window_size: u64,
 }
 
-fn reencode_video(input: &str, output: &str, opts: Options) -> Result<()> {
-    // Automatically download Real-ESRGAN
-    realesrgan::check_and_download().context("downloading Real-ESRGAN")?;
-
-    // Check input and output files
-    ensure!(file_exists(input)?, "input file doesn't exist");
-    ensure!(!file_exists(output)?, "output file already exists");
-
+fn upscale_video(input: &str, output: &str, opts: Options) -> Result<()> {
     // Interrogate input video for frame info
     let ffmpeg::StreamData { frames, framerate } = ffmpeg::probe_video(input)?;
 
