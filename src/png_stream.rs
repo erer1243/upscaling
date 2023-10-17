@@ -2,9 +2,7 @@
 // http://www.libpng.org/pub/png/spec/1.2/PNG-Structure.html
 
 use eyre::{ensure, Result};
-use std::{
-    io::{self, Read, Write},
-};
+use std::io::{self, Read, Write};
 
 pub struct PngStreamSplitter<T>(T);
 

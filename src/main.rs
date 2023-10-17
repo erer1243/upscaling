@@ -11,9 +11,7 @@ use std::{
     io::{self, BufReader},
     process::{exit, Command},
 };
-use util::print_flush;
-
-use crate::util::file_exists;
+use util::{file_exists, print_flush};
 
 fn main() -> Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
@@ -28,11 +26,12 @@ fn main() -> Result<()> {
         frame_window_size: 100,
     };
 
-    let res = reencode_video(input, output, options).context("Reencoding failed!");
-    if res.is_err() {
-        _ = fs::remove_file(output);
-    }
-    res
+    reencode_video(input, output, options)
+        .context("Reencoding failed!")
+        .map_err(|e| {
+            _ = fs::remove_file(output);
+            e
+        })
 }
 
 struct Options {

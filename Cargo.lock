@@ -314,12 +314,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lazy_format"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c20af27ff47d964ba51ed586b8e84695261ff364922ad40bcf5a8080e99954d"
-
-[[package]]
 name = "libc"
 version = "0.2.149"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -555,12 +549,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shlex"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7cee0529a6d40f580e7a5e6c495c8fbfe21b7b52795ed4bb5e62cdf92bc6380"
-
-[[package]]
 name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -676,11 +664,9 @@ dependencies = [
  "ctrlc",
  "dirs",
  "eyre",
- "lazy_format",
  "once_cell",
  "serde",
  "serde_json",
- "shlex",
  "ureq",
  "zip",
 ]
