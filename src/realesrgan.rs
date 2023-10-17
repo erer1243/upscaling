@@ -37,16 +37,19 @@ pub fn check_and_download() -> Result<()> {
     Ok(())
 }
 
-pub fn upscale_images_in_dir<I, O>(input: I, output: O, scale: &str) -> Result<()>
+pub fn upscale_images_in_dir<I, O, S, M>(input: I, output: O, scale: S, model: M) -> Result<()>
 where
     I: AsRef<OsStr>,
     O: AsRef<OsStr>,
+    S: AsRef<OsStr>,
+    M: AsRef<OsStr>,
 {
     let mut cmd = command! {
         &*EXECUTABLE,
             "-s", scale,
             "-i", input,
-            "-o", output
+            "-o", output,
+            "-n", model,
     };
     cmd.stdout(Stdio::null());
     cmd.stderr(Stdio::null());

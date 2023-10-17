@@ -1,47 +1,37 @@
 // #![allow(dead_code, unused_imports, unreachable_code)]
+mod cli;
 mod ffmpeg;
 mod png_stream;
 mod realesrgan;
 mod util;
 
+use cli::CliOptions;
 use eyre::{ensure, Context, Result};
 use std::{
     cmp::min,
     fs::{self, File},
     io::{self, BufReader},
-    process::{exit, id as pid},
+    process::id as pid,
 };
 use util::{command, file_exists, print_flush};
 
 fn main() -> Result<()> {
-    let mut args = std::env::args().collect::<Vec<_>>();
+    let options = CliOptions::parse();
+    let input = &options.input;
+    let output = &options.output;
 
-    match args.len() {
-        3 => (),
-        2 => args.push(format!(
-            "{}_upscaled.mp4",
-            args[1].rsplit_once('.').unwrap().0
-        )),
-        _ => {
-            eprintln!("usage: {} INPUT OUTPUT", args[0]);
-            exit(1);
-        }
-    };
-
-    let input = &args[1];
-    let output = &args[2];
-    let options = Options {
-        frame_window_size: 100,
-    };
-
-    // Automatically download Real-ESRGAN
-    realesrgan::check_and_download().context("downloading Real-ESRGAN")?;
+    // Helpful for analyzing output from shell loops
+    println!("input = {input}");
+    println!("output = {output}");
 
     // Check input and output files
     ensure!(file_exists(input)?, "{input} doesn't exist");
     ensure!(!file_exists(output)?, "{output} already exists");
 
-    upscale_video(input.trim(), output.trim(), options)
+    // Automatically download Real-ESRGAN
+    realesrgan::check_and_download().context("downloading Real-ESRGAN")?;
+
+    upscale_video(&options)
         .context("Reencoding failed!")
         .map_err(|e| {
             _ = fs::remove_file(output);
@@ -49,12 +39,16 @@ fn main() -> Result<()> {
         })
 }
 
-struct Options {
-    // Number of frames stored in tempdir at one time
-    frame_window_size: u64,
-}
+fn upscale_video(opts: &CliOptions) -> Result<()> {
+    let CliOptions {
+        input,
+        output,
+        window_size,
+        scale,
+        model,
+        ..
+    } = opts;
 
-fn upscale_video(input: &str, output: &str, opts: Options) -> Result<()> {
     // Interrogate input video for frame info
     let ffmpeg::StreamData { frames, framerate } = ffmpeg::probe_video(input)?;
 
@@ -78,7 +72,6 @@ fn upscale_video(input: &str, output: &str, opts: Options) -> Result<()> {
 
     ctrlc::set_handler(ctrlc_handler)?;
 
-    let window_size = opts.frame_window_size;
     let n_windows = frames / window_size + 1;
 
     for window_i in 0..n_windows {
@@ -94,7 +87,12 @@ fn upscale_video(input: &str, output: &str, opts: Options) -> Result<()> {
         }
 
         // Upscale from lores dir to hires dir
-        realesrgan::upscale_images_in_dir(lores_frames_dir, hires_frames_dir, "2")?;
+        realesrgan::upscale_images_in_dir(
+            lores_frames_dir,
+            hires_frames_dir,
+            scale.as_str(),
+            model.as_str(),
+        )?;
 
         // Write frames from hires frames dir into encoder, and delete them
         for frame_i in 0..n_frames {
