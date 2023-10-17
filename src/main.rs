@@ -14,11 +14,19 @@ use std::{
 use util::{command, file_exists, print_flush};
 
 fn main() -> Result<()> {
-    let args = std::env::args().collect::<Vec<_>>();
-    if args.len() != 3 {
-        eprintln!("usage: {} INPUT OUTPUT", args[0]);
-        exit(1);
-    }
+    let mut args = std::env::args().collect::<Vec<_>>();
+
+    match args.len() {
+        3 => (),
+        2 => args.push(format!(
+            "{}_upscaled.mp4",
+            args[1].rsplit_once('.').unwrap().0
+        )),
+        _ => {
+            eprintln!("usage: {} INPUT OUTPUT", args[0]);
+            exit(1);
+        }
+    };
 
     let input = &args[1];
     let output = &args[2];
