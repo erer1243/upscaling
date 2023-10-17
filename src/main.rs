@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     let input = &args[1];
     let output = &args[2];
     let options = Options {
-        frame_window_size: 10,
+        frame_window_size: 100,
     };
 
     let res = reencode_video(input, output, options).context("Reencoding failed!");
