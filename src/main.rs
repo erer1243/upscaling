@@ -9,9 +9,9 @@ use std::{
     cmp::min,
     fs::{self, File},
     io::{self, BufReader},
-    process::{exit, Command},
+    process::{exit, id as pid},
 };
-use util::{file_exists, print_flush};
+use util::{command, file_exists, print_flush};
 
 fn main() -> Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
@@ -114,10 +114,8 @@ fn ctrlc_handler() {
     println!("Interrupted");
 
     // Kill all child procs. This will allow normal error propagation to take over, and run drop code.
-    let our_pid = std::process::id();
-    let children_str = fs::read_to_string(&format!("/proc/self/task/{our_pid}/children"))
-        .expect("getting pids of child processes");
-    for pid in children_str.split_whitespace() {
-        _ = Command::new("kill").arg(pid).status();
-    }
+    fs::read_to_string(&format!("/proc/self/task/{}/children", pid()))
+        .expect("getting pids of child processes")
+        .split_whitespace()
+        .for_each(|pid| _ = command!("kill", pid));
 }

@@ -1,9 +1,9 @@
-use crate::util::print_flush;
+use crate::util::{command, print_flush};
 use eyre::{ensure, Result};
 use serde::Deserialize;
 use std::{
     ffi::OsStr,
-    process::{Child, Command, Stdio},
+    process::{Child, Stdio},
 };
 
 const BASIC_ARGS: &[&str] = &["-loglevel", "error"];
@@ -13,29 +13,30 @@ where
     I: AsRef<OsStr>,
     O: AsRef<OsStr>,
 {
-    let mut cmd = Command::new("ffmpeg");
+    let mut cmd = command! {
+        "ffmpeg",
+            "-f", "image2pipe",
+            "-framerate", framerate,
+            "-i", "-",
+            "-i", original_src,
+            "-map", "0:v:0", "-map", "1:a:0?",
+            "-c:a", "copy", "-c:v", "libx265",
+            "-x265-params", "log-level=none",
+            output_path
+    };
     cmd.args(BASIC_ARGS);
-    cmd.args(["-f", "image2pipe", "-framerate", framerate, "-i", "-"]);
-    cmd.args(["-i".as_ref(), original_src.as_ref()]);
-    cmd.args(["-map", "0:v:0", "-map", "1:a:0?"]);
-    cmd.args([
-        "-c:a",
-        "copy",
-        "-c:v",
-        "libx265",
-        "-x265-params",
-        "log-level=none",
-    ]);
-    cmd.arg(output_path);
     cmd.stdin(Stdio::piped());
     Ok(cmd.spawn()?)
 }
 
 pub fn launch_decoder<S: AsRef<OsStr>>(source_video: S) -> Result<Child> {
-    let mut cmd = Command::new("ffmpeg");
-    cmd.args(BASIC_ARGS);
-    cmd.args(["-i".as_ref(), source_video.as_ref()]);
-    cmd.args(["-c:v", "png", "-f", "image2pipe", "-"]);
+    let mut cmd = command! {
+        "ffmpeg",
+            "-i", source_video,
+            "-c:v", "png",
+            "-f", "image2pipe",
+            "-"
+    };
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     Ok(cmd.spawn()?)
@@ -44,18 +45,15 @@ pub fn launch_decoder<S: AsRef<OsStr>>(source_video: S) -> Result<Child> {
 pub fn probe_video<P: AsRef<OsStr>>(path: P) -> Result<StreamData> {
     // Run ffprobe on video
     print_flush!("Probing video... ");
-    let mut cmd = Command::new("ffprobe");
-    cmd.args(BASIC_ARGS);
-    cmd.args([
-        "-count_frames",
-        "-select_streams",
-        "v:0",
-        "-show_streams",
-        "-print_format",
-        "json",
-    ]);
-    cmd.arg(path);
-    let output = cmd.output()?;
+    let output = command! {
+        "ffprobe",
+            "-count_frames",
+            "-select_streams", "v:0",
+            "-show_streams",
+            "-print_format", "json",
+            path
+    }
+    .output()?;
     println!("done");
 
     // Deserialize ffprobe data

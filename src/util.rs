@@ -2,7 +2,6 @@ use eyre::Result;
 use std::{
     fs, io,
     path::{Path, PathBuf},
-    process::Command,
     str,
 };
 
@@ -17,16 +16,22 @@ macro_rules! print_flush {
 }
 pub(crate) use print_flush;
 
+macro_rules! command {
+    ($cmd:expr, $($args:expr),* $(,)?) => {{
+        let mut cmd = ::std::process::Command::new($cmd);
+        $(cmd.arg($args);)*
+        cmd
+    }};
+}
+pub(crate) use command;
+
 pub struct TempDir(PathBuf);
 
 impl TempDir {
     pub fn new() -> Result<Self> {
-        let mut cmd = Command::new("mktemp");
-        cmd.args(["-d", "--suffix=-upscaling"]);
-        let output = cmd.output()?;
+        let output = command!("mktemp", "-d", "--suffix=-upscaling").output()?;
         let path_str = str::from_utf8(&output.stdout)?.trim_end();
-        let p = PathBuf::from(path_str);
-        Ok(Self(p))
+        Ok(Self(PathBuf::from(path_str)))
     }
 
     pub fn path(&self) -> &Path {
@@ -36,7 +41,7 @@ impl TempDir {
 
 impl Drop for TempDir {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(self.path());
+        _ = fs::remove_dir_all(self.path());
     }
 }
 

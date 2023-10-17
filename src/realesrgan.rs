@@ -1,13 +1,7 @@
-use crate::util::{file_exists, print_flush};
+use crate::util::{command, file_exists, print_flush};
 use eyre::{ensure, Result};
 use once_cell::sync::Lazy;
-use std::{
-    ffi::OsStr,
-    fs,
-    os::unix::fs::PermissionsExt,
-    path::PathBuf,
-    process::{Command, Stdio},
-};
+use std::{ffi::OsStr, fs, os::unix::fs::PermissionsExt, path::PathBuf, process::Stdio};
 use zip::unstable::stream::ZipStreamReader;
 
 pub static EXECUTABLE: Lazy<PathBuf> = Lazy::new(|| {
@@ -48,11 +42,12 @@ where
     I: AsRef<OsStr>,
     O: AsRef<OsStr>,
 {
-    let mut cmd = Command::new(&*EXECUTABLE);
-    cmd.args(["-s", scale]);
-    cmd.args(["-i".as_ref(), input.as_ref()]);
-    cmd.args(["-o".as_ref(), output.as_ref()]);
-    cmd.stdin(Stdio::null());
+    let mut cmd = command! {
+        &*EXECUTABLE,
+            "-s", scale,
+            "-i", input,
+            "-o", output
+    };
     cmd.stdout(Stdio::null());
     cmd.stderr(Stdio::null());
     cmd.status()?;
