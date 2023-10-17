@@ -6,7 +6,7 @@ use std::{
     process::{Child, Stdio},
 };
 
-const BASIC_ARGS: &[&str] = &["-loglevel", "error"];
+const QUIET_ARGS: &[&str] = &["-loglevel", "error"];
 
 pub fn launch_encoder<I, O>(framerate: &str, original_src: I, output_path: O) -> Result<Child>
 where
@@ -24,7 +24,7 @@ where
             "-x265-params", "log-level=none",
             output_path
     };
-    cmd.args(BASIC_ARGS);
+    cmd.args(QUIET_ARGS);
     cmd.stdin(Stdio::piped());
     Ok(cmd.spawn()?)
 }
@@ -37,6 +37,7 @@ pub fn launch_decoder<S: AsRef<OsStr>>(source_video: S) -> Result<Child> {
             "-f", "image2pipe",
             "-"
     };
+    cmd.args(QUIET_ARGS);
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     Ok(cmd.spawn()?)
@@ -45,15 +46,16 @@ pub fn launch_decoder<S: AsRef<OsStr>>(source_video: S) -> Result<Child> {
 pub fn probe_video<P: AsRef<OsStr>>(path: P) -> Result<StreamData> {
     // Run ffprobe on video
     print_flush!("Probing video... ");
-    let output = command! {
+    let mut cmd = command! {
         "ffprobe",
             "-count_frames",
             "-select_streams", "v:0",
             "-show_streams",
             "-print_format", "json",
             path
-    }
-    .output()?;
+    };
+    cmd.args(QUIET_ARGS);
+    let output = cmd.output()?;
     println!("done");
 
     // Deserialize ffprobe data
