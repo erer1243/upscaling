@@ -11,7 +11,8 @@ use std::{
     cmp::min,
     fs::{self, File},
     io::{self, BufReader},
-    process::id as pid,
+    process,
+    ptr::null_mut,
 };
 use util::{command, file_exists, print_flush};
 
@@ -34,6 +35,9 @@ fn main() -> Result<()> {
     upscale_video(&options)
         .context("Reencoding failed!")
         .map_err(|e| {
+            // TODO: Make Command wrapper that waits for child process on drop,
+            // so this call is unnecessary
+            unsafe { libc::wait(null_mut()) };
             _ = fs::remove_file(output);
             e
         })
@@ -73,12 +77,11 @@ fn upscale_video(opts: &CliOptions) -> Result<()> {
     ctrlc::set_handler(ctrlc_handler)?;
 
     let n_windows = frames / window_size + 1;
-
     for window_i in 0..n_windows {
         let first = window_i * window_size;
         let last = min(frames, first + window_size);
         let n_frames = last - first;
-        print_flush!("Processing frames {first:03}/{frames:03}... ");
+        print_flush!("\rWindow {window_i:02}/{n_windows:02} Frame {first:03}/{frames:03}");
 
         // Write frames from decoder into lores frames dir
         for frame_i in 0..n_frames {
@@ -103,9 +106,9 @@ fn upscale_video(opts: &CliOptions) -> Result<()> {
             fs::remove_file(lores_frame_path)?;
             fs::remove_file(hires_frame_path)?;
         }
-
-        println!("done");
     }
+
+    println!("done");
 
     // End ffmpeg processes
     drop(png_stream);
@@ -120,7 +123,7 @@ fn ctrlc_handler() {
     println!("Interrupted");
 
     // Kill all child procs. This will allow normal error propagation to take over, and run drop code.
-    fs::read_to_string(format!("/proc/self/task/{}/children", pid()))
+    fs::read_to_string(format!("/proc/self/task/{}/children", process::id()))
         .expect("getting pids of child processes")
         .split_whitespace()
         .for_each(|pid| _ = command!("kill", pid));

@@ -771,6 +771,7 @@ dependencies = [
  "ctrlc",
  "dirs",
  "eyre",
+ "libc",
  "once_cell",
  "serde",
  "serde_json",
