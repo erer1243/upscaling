@@ -29,6 +29,10 @@ pub struct CliOptions {
     /// Real-ESRGAN upscaling model to use
     #[arg(short = 'm', long = "model", default_value = "realesr-animevideov3")]
     pub model: Model,
+
+    /// Automatically convert vfr to cfr (will store whole video in /tmp!)
+    #[arg(short = 'c', long = "convert-vfr")]
+    pub convert_vfr: bool,
 }
 
 impl CliOptions {

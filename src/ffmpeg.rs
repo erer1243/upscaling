@@ -1,8 +1,9 @@
-use crate::util::{command, print_flush};
+use crate::util::{command, print_flush, TempDir};
 use eyre::{ensure, Result};
 use serde::Deserialize;
 use std::{
     ffi::OsStr,
+    path::PathBuf,
     process::{Child, Stdio},
 };
 
@@ -41,7 +42,7 @@ pub fn launch_decoder<S: AsRef<OsStr>>(source_video: S) -> Result<Child> {
     Ok(cmd.spawn()?)
 }
 
-pub fn probe_video<P: AsRef<OsStr>>(path: P) -> Result<StreamData> {
+pub fn probe_video<P: AsRef<OsStr>>(path: P) -> Result<Result<StreamData, VFRError>> {
     // Run ffprobe on video
     print_flush!("Probing video... ");
     let output = command! {
@@ -66,12 +67,17 @@ pub fn probe_video<P: AsRef<OsStr>>(path: P) -> Result<StreamData> {
         avg_frame_rate: avg_fr,
         nb_read_frames: frames_str,
     } = streams.pop().unwrap();
-    ensure!(framerate == avg_fr, "variable framerate input");
 
-    Ok(StreamData {
-        framerate,
-        frames: frames_str.parse()?,
-    })
+    let inner_res = if framerate == avg_fr {
+        Ok(StreamData {
+            framerate,
+            frames: frames_str.parse()?,
+        })
+    } else {
+        Err(VFRError)
+    };
+
+    Ok(inner_res)
 }
 
 #[derive(Deserialize)]
@@ -91,4 +97,26 @@ pub struct StreamData {
     // ffmpeg/ffprobe use strings of fractions for precise framerate, eg "30/1" for 30fps
     pub framerate: String,
     pub frames: u64,
+}
+
+// Variable framerate
+pub struct VFRError;
+
+pub fn convert_vfr_to_cfr<P: AsRef<OsStr>>(video: P) -> Result<(TempDir, PathBuf)> {
+    let temp_dir = TempDir::new()?;
+    let output = temp_dir.path().join("converted_to_cfr.mp4");
+    let mut cmd = command! {
+        "ffmpeg",
+            "-loglevel", "error",
+            "-i", video,
+            // "-c:v", "copy",
+            "-c:a", "copy",
+            "-vsync", "cfr",
+            &output
+    };
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::null());
+    let status = cmd.status()?;
+    ensure!(status.success(), "conversion to cfr failed");
+    Ok((temp_dir, output))
 }

@@ -6,7 +6,7 @@ mod realesrgan;
 mod util;
 
 use cli::CliOptions;
-use eyre::{ensure, Context, Result};
+use eyre::{bail, ensure, Context, Result};
 use std::{
     cmp::min,
     fs::{self, File},
@@ -15,6 +15,8 @@ use std::{
     ptr::null_mut,
 };
 use util::{command, file_exists, print_flush};
+
+use crate::ffmpeg::VFRError;
 
 fn main() -> Result<()> {
     let options = CliOptions::parse();
@@ -32,29 +34,56 @@ fn main() -> Result<()> {
     // Automatically download Real-ESRGAN
     realesrgan::check_and_download().context("downloading Real-ESRGAN")?;
 
-    upscale_video(&options)
-        .context("Reencoding failed!")
-        .map_err(|e| {
-            // TODO: Make Command wrapper that waits for child process on drop,
-            // so this call is unnecessary
-            unsafe { libc::wait(null_mut()) };
-            _ = fs::remove_file(output);
-            e
-        })
-}
-
-fn upscale_video(opts: &CliOptions) -> Result<()> {
     let CliOptions {
         input,
         output,
         window_size,
         scale,
         model,
+        convert_vfr: handle_vfr,
         ..
-    } = opts;
+    } = options;
 
+    upscale_video(
+        &input,
+        &output,
+        window_size,
+        scale.as_str(),
+        model.as_str(),
+        handle_vfr,
+    )
+    .context("Reencoding failed!")
+    .map_err(|e| {
+        // TODO: Make Command wrapper that waits for child process on drop,
+        // so this call is unnecessary
+        unsafe { libc::wait(null_mut()) };
+        _ = fs::remove_file(output);
+        e
+    })
+}
+
+fn upscale_video(
+    input: &str,
+    output: &str,
+    window_size: u64,
+    scale: &str,
+    model: &str,
+    convert_vfr: bool,
+) -> Result<()> {
     // Interrogate input video for frame info
-    let ffmpeg::StreamData { frames, framerate } = ffmpeg::probe_video(input)?;
+    let stream_data_or_vfr = ffmpeg::probe_video(input)?;
+    let stream_data = match stream_data_or_vfr {
+        Ok(sd) => sd,
+        Err(VFRError) if !convert_vfr => bail!("variable framerate input (try -c)"),
+        Err(VFRError) => {
+            print_flush!("Converting vfr video to cfr...");
+            let (_conversion_temp_dir, converted) = ffmpeg::convert_vfr_to_cfr(input)?;
+            println!("done");
+            let new_input = converted.as_os_str().to_str().unwrap();
+            return upscale_video(new_input, output, window_size, scale, model, false);
+        }
+    };
+    let ffmpeg::StreamData { frames, framerate } = stream_data;
 
     // Setup tempdir used as work space for realesrgan
     let temp_dir = util::TempDir::new()?;
@@ -90,12 +119,7 @@ fn upscale_video(opts: &CliOptions) -> Result<()> {
         }
 
         // Upscale from lores dir to hires dir
-        realesrgan::upscale_images_in_dir(
-            lores_frames_dir,
-            hires_frames_dir,
-            scale.as_str(),
-            model.as_str(),
-        )?;
+        realesrgan::upscale_images_in_dir(lores_frames_dir, hires_frames_dir, scale, model)?;
 
         // Write frames from hires frames dir into encoder, and delete them
         for frame_i in 0..n_frames {
