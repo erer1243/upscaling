@@ -67,11 +67,15 @@ pub fn pretty_time(total_secs: u64) -> String {
     let secs = total_secs % 60;
     let mut s = String::new();
     if hrs > 0 {
-        write!(s, "{hrs}h ").unwrap();
+        write!(s, "{hrs}h").unwrap();
     }
     if mins > 0 {
-        write!(s, "{mins}m ").unwrap();
+        write!(s, "{mins}m").unwrap();
     }
     write!(s, "{secs}s").unwrap();
     s
+}
+
+pub fn clear_line() {
+    print_flush!("\r{: <100}\r", "");
 }
