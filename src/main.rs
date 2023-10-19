@@ -5,7 +5,11 @@ mod png_stream;
 mod realesrgan;
 mod util;
 
-use cli::CliOptions;
+use crate::{
+    cli::CliOptions,
+    ffmpeg::VFRError,
+    util::{command, file_exists, pretty_time, print_flush, progress_bar},
+};
 use eyre::{bail, ensure, Context, Result};
 use std::{
     cmp::min,
@@ -13,10 +17,8 @@ use std::{
     io::{self, BufReader},
     process,
     ptr::null_mut,
+    time::Instant,
 };
-use util::{command, file_exists, print_flush};
-
-use crate::ffmpeg::VFRError;
 
 fn main() -> Result<()> {
     let options = CliOptions::parse();
@@ -85,6 +87,9 @@ fn upscale_video(
     };
     let ffmpeg::StreamData { frames, framerate } = stream_data;
 
+    println!("Upscaling video...");
+    let start_time = Instant::now();
+
     // Setup tempdir used as work space for realesrgan
     let temp_dir = util::TempDir::new()?;
     let lores_frames_dir = temp_dir.path().join("in");
@@ -110,7 +115,9 @@ fn upscale_video(
         let first = window_i * window_size;
         let last = min(frames, first + window_size);
         let n_frames = last - first;
+
         print_flush!("\rWindow {window_i:02}/{n_windows:02} Frame {first:03}/{frames:03}");
+        print_flush!(" {}", progress_bar(30, first as usize, frames as usize));
 
         // Write frames from decoder into lores frames dir
         for frame_i in 0..n_frames {
@@ -132,7 +139,11 @@ fn upscale_video(
         }
     }
 
-    println!("done");
+    let secs_elapsed = Instant::now().duration_since(start_time).as_secs();
+
+    // Clear progress line & print final stats
+    print_flush!("\r{: <100}\r", "");
+    println!("Upscaled {frames} frames in {}", pretty_time(secs_elapsed));
 
     // End ffmpeg processes
     drop(png_stream);

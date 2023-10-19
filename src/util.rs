@@ -1,5 +1,6 @@
 use eyre::Result;
 use std::{
+    fmt::Write,
     fs, io,
     path::{Path, PathBuf},
     str,
@@ -47,4 +48,30 @@ impl Drop for TempDir {
 
 pub fn file_exists<P: AsRef<Path>>(p: P) -> io::Result<bool> {
     p.as_ref().try_exists()
+}
+
+pub fn progress_bar(width: usize, value: usize, max: usize) -> String {
+    let mut s = String::with_capacity(width);
+    let iw = width - 2;
+    let n = iw * value / max;
+    s.push('[');
+    (0..n).for_each(|_| s.push('#'));
+    (n..iw).for_each(|_| s.push('.'));
+    s.push(']');
+    s
+}
+
+pub fn pretty_time(total_secs: u64) -> String {
+    let hrs = total_secs / 3600;
+    let mins = (total_secs % 3600) / 60;
+    let secs = total_secs % 60;
+    let mut s = String::new();
+    if hrs > 0 {
+        write!(s, "{hrs}h ").unwrap();
+    }
+    if mins > 0 {
+        write!(s, "{mins}m ").unwrap();
+    }
+    write!(s, "{secs}s").unwrap();
+    s
 }
