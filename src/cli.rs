@@ -14,12 +14,7 @@ pub struct CliOptions {
     pub output: String,
 
     /// Number of frames processed at once.
-    #[arg(
-        short = 'w',
-        long = "window",
-        default_value_t = 100,
-        verbatim_doc_comment
-    )]
+    #[arg(short = 'w', long = "window", default_value_t = 100)]
     pub window_size: u64,
 
     /// Scale factor
