@@ -21,7 +21,7 @@ use std::{
 };
 
 fn main() -> Result<()> {
-    let options = CliOptions::parse();
+    let options = CliOptions::parse().context("Checking CLI args")?;
     let input = &options.input;
     let output = &options.output;
 

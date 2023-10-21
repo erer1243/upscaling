@@ -1,4 +1,6 @@
 use clap::{Parser, ValueEnum};
+use eyre::Result;
+use std::fs;
 
 #[derive(Parser)]
 pub struct CliOptions {
@@ -6,7 +8,8 @@ pub struct CliOptions {
     pub input: String,
 
     /// Destination video. [default: x.mp4 -> x_upscaled.mp4]
-    #[arg(name = "OUTPUT")]
+    /// May be an output directory, in which case the input name is preserved.
+    #[arg(name = "OUTPUT", verbatim_doc_comment)]
     maybe_output: Option<String>,
 
     /// Actual output value, inferred from maybe_output
@@ -31,13 +34,19 @@ pub struct CliOptions {
 }
 
 impl CliOptions {
-    pub fn parse() -> Self {
+    pub fn parse() -> Result<Self> {
         let mut opts = <CliOptions as Parser>::parse();
         match opts.maybe_output.take() {
-            Some(s) => opts.output = s,
+            Some(output) => {
+                opts.output = if fs::metadata(&output)?.is_dir() {
+                    format!("{output}/{}", as_mp4(&opts.input))
+                } else {
+                    output
+                };
+            }
             None => opts.output = default_output(&opts.input),
         }
-        opts
+        Ok(opts)
     }
 }
 
@@ -89,4 +98,8 @@ impl Model {
 
 fn default_output(input: &str) -> String {
     format!("{}_upscaled.mp4", input.rsplit_once('.').unwrap().0)
+}
+
+fn as_mp4(input: &str) -> String {
+    format!("{}.mp4", input.rsplit_once('.').unwrap().0)
 }
