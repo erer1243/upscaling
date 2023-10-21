@@ -21,7 +21,7 @@ where
             "-i", original_src,
             "-map", "0:v:0", "-map", "1:a:0?",
             "-c:a", "copy", "-c:v", "libx265",
-            "-x265-params", "log-level=none",
+            "-x265-params", "log-level=error",
             output_path
     };
     cmd.stdin(Stdio::piped());
