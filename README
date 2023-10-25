@@ -14,3 +14,6 @@ This program solves the issue by decoding, upscaling, and reencoding frames, on
 the fly, in memory (in /tmp, which is typically a ramdisk on modern Linux). As a
 result, upscaling becomes appreciably faster and only requires enough disk space
 to write the final upscaled video.
+
+The program also automatically downloads & caches realesrgan-ncnn-vulkan along
+with the official trained upscaling models.
