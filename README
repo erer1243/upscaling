@@ -1,0 +1,16 @@
+Wrapper around ffmpeg + realesrgan-ncnn-vulkan that enables easy video upscaling
+without the immense disk usage incurred by the official video upscaling method
+documented by the Real-ESRGAN developers.
+
+Standard video upscaling with realesrgan-ncnn-vulkan involves using ffmpeg to
+split a video into individual frames, then upscale them with realesrcan-ncnn-vulkan, 
+and finally reencode the upscaled frames into a new video. Because the
+benefit of inter-frame compression is lost during frame splitting, a modestly
+sized video of around 200MiB will end up ballooning to several hundred GiB (!!)
+of frames on disk. This immensely slows the upscaling process and burns through
+SSD writes.
+
+This program solves the issue by decoding, upscaling, and reencoding frames, on
+the fly, in memory (in /tmp, which is typically a ramdisk on modern Linux). As a
+result, upscaling becomes appreciably faster and only requires enough disk space
+to write the final upscaled video.
