@@ -1,6 +1,6 @@
 use clap::{Parser, ValueEnum};
 use eyre::Result;
-use std::fs;
+use std::{fs, path::Path};
 
 #[derive(Parser)]
 pub struct CliOptions {
@@ -39,7 +39,8 @@ impl CliOptions {
         match opts.maybe_output.take() {
             Some(output) => {
                 opts.output = if fs::metadata(&output)?.is_dir() {
-                    format!("{output}/{}", as_mp4(&opts.input))
+                    let name = filename_as_mp4(&opts.input);
+                    format!("{output}/{name}")
                 } else {
                     output
                 };
@@ -97,9 +98,18 @@ impl Model {
 }
 
 fn default_output(input: &str) -> String {
-    format!("{}_upscaled.mp4", input.rsplit_once('.').unwrap().0)
+    format!("{}_upscaled.mp4", strip_extension(input))
 }
 
-fn as_mp4(input: &str) -> String {
-    format!("{}.mp4", input.rsplit_once('.').unwrap().0)
+fn filename_as_mp4(input: &str) -> String {
+    let file_name = Path::new(input).file_name().unwrap().to_str().unwrap();
+    format!("{}.mp4", strip_extension(file_name))
+}
+
+fn strip_extension(input: &str) -> &str {
+    Path::new(input)
+        .extension()
+        .map(|ext| input.strip_suffix(ext.to_str().unwrap()).unwrap())
+        .map(|with_dot| with_dot.strip_suffix('.').unwrap())
+        .unwrap_or(input)
 }
